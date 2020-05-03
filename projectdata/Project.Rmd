@@ -1,0 +1,191 @@
+---
+title: "Project"
+author: "Group"
+date: "4/9/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(readxl)
+```
+
+```{r}
+# Read base data into R
+# Cumulative number of confirmed cases and number of deaths
+# Up until 4/25/2020
+cv19.cty = read.csv("us-counties.csv")
+
+cv19.st = cv19.cty %>%
+  filter(date == "2020-04-25") %>%
+  select(state, cases, deaths) %>%
+  group_by(state) %>%
+  summarise_all(sum) %>%
+  filter(state != "Guam" &
+           state != "Northern Mariana Islands" &
+           state != "Puerto Rico" &
+           state != "Virgin Islands") %>%
+  mutate(PercentDeath = round((deaths/cases)*100, digits = 2)) %>%
+  rename(State = state,
+         Cases = cases,
+         Deaths = deaths)
+
+###
+
+# Read hospital data into R
+# Number of hospital beds (last updated 2020)
+hospital.cty = read.csv("Hospitals.csv")
+
+hospital.st = hospital.cty %>%
+  filter(STATUS == "OPEN" & BEDS != -999) %>%
+  select(STATE, BEDS) %>%
+  group_by(STATE) %>%
+  summarise_all(sum) %>%
+  filter(STATE != "GU" &
+           STATE != "MP" &
+           STATE != "PR" &
+           STATE != "PW" &
+           STATE != "VI") %>%
+  mutate(STATE = state.name[match(STATE, state.abb)]) %>%
+  mutate(STATE = replace_na(STATE, "District of Columbia")) %>%
+  rename(State = STATE,
+         NumBeds = BEDS)
+
+###
+
+# Read occupational data into R
+# Number of registered nurses (2019)
+occ = read_xlsx("state_M2019_dl.xlsx")
+
+# Search for all titles related to nursing
+# occ$occ_title[grep("Nurs", occ$occ_title)]
+
+# Filter for registered nurse
+nurse.st = occ %>%
+  filter(occ_title == "Registered Nurses") %>%
+  select(area_title, tot_emp) %>%
+  slice(1:51) %>%
+  mutate(RegNurse = as.numeric(tot_emp)) %>%
+  rename(State = area_title) %>%
+  select(State, RegNurse)
+
+###
+
+# Read lockdown data into R
+# Number of days each state has been in lockdown
+lkd.int = read.csv("countryLockdowndates.csv")
+
+lkd.st = lkd.int %>%
+  filter(Country.Region == "US") %>%
+  select(Province, Date) %>%
+  rename(State = Province) %>%
+  mutate(Date = as.Date(Date, "%d/%m/%Y")) %>%
+  mutate(LkdDuration =
+           as.numeric(as.Date("2020-04-25")) - as.numeric(Date)) %>%
+  mutate(LkdDuration = replace_na(LkdDuration, 0)) %>%
+  select(State, LkdDuration)
+
+###
+
+# Read transportation data into R
+# Number of unlinked passenger trips in thousands (2013)
+transpo = read_xlsx("table_04-04_1.xlsx", skip = 3, n_max = 51, col_names = c("State", "drop", "Trips", "MotorBus", "HeavyRail", "LightRail", "CommuterRail", "Other"))
+
+transpo.st = transpo %>%
+  select(State, Trips) %>%
+  rename(PubTrans = Trips)
+
+###
+
+# Read race data into R
+# Percentage of each race out of total population (2017)
+demo.cty = read.csv("acs2017_county_data.csv")
+
+demo.st = demo.cty %>%
+  mutate(Hisp_Ct = ceiling(TotalPop*(Hispanic/100)),
+         White_Ct = ceiling(TotalPop*(White/100)),
+         Black_Ct = ceiling(TotalPop*(Black/100)),
+         Native_Ct = ceiling(TotalPop*(Native/100)),
+         Asian_Ct = ceiling(TotalPop*(Asian/100)),
+         Pac_Ct = ceiling(TotalPop*(Pacific/100))) %>%
+  select(State, TotalPop, Hisp_Ct, White_Ct,
+         Black_Ct, Native_Ct, Asian_Ct, Pac_Ct) %>%
+  group_by(State) %>%
+  summarise_all(sum) %>%
+  mutate(Hispanic = round((Hisp_Ct/TotalPop)*100, digits = 2),
+         White = round((White_Ct/TotalPop)*100, digits = 2),
+         Black = round((Black_Ct/TotalPop)*100, digits = 2),
+         Native = round((Native_Ct/TotalPop)*100, digits = 2),
+         Asian = round((Asian_Ct/TotalPop)*100, digits = 2),
+         Pacific = round((Pac_Ct/TotalPop)*100, digits = 2)) %>%
+  select(State, Hispanic, White,
+         Black, Native, Asian, Pacific) %>%
+  filter(State != "Puerto Rico")
+
+###
+
+# Read age data into R
+# Percentage of population 65 and older (2018)
+age = read.csv("PEP_2018_PEPAGESEX_with_ann.csv")
+
+# Search for most recent census data
+# age[,grep("2018sex0", names(age))]
+
+age.st = age %>%
+  select(GEO.display.label, est72018sex0_age999, est72018sex0_age65plus) %>%
+  slice(3:53) %>%
+  mutate(TotalPop = as.numeric(as.character(est72018sex0_age999)),
+         OlderPop = as.numeric(as.character(est72018sex0_age65plus))) %>%
+  mutate(Pct65Plus = round((OlderPop/TotalPop)*100, digits = 2)) %>%
+  rename(State = GEO.display.label) %>%
+  select(State, TotalPop, Pct65Plus)
+
+###
+
+# Read health insurance data into R
+# Percentage of population uninsured (2018)
+insurance = read_xlsx("Uninsured.xlsx", skip = 7, col_names = c("State", "Number", "Err1", "Percent", "Err2"))
+
+insurance.st = insurance %>%
+  select(State, Percent) %>%
+  rename(Uninsured = Percent)
+
+###
+
+# Read poverty data into R
+# Percentage of population in poverty (Average 2016-2018)
+poverty = read_xlsx("poverty.xlsx", skip = 8, col_names = c("State", "Percent", "Err"))
+
+poverty.st = poverty %>%
+  select(State, Percent) %>%
+  rename(Poverty = Percent)
+
+###
+
+# Read unemployment data into R
+# Percentage of population unemployed (March 2020)
+unemployed = read_xlsx("unemployed.xlsx", skip = 1, col_names = c("State", "Percent", "Rank"))
+
+unemployed.st = unemployed %>%
+  arrange(State, desc(State)) %>%
+  select(State, Percent) %>%
+  rename(Unemp = Percent)
+
+data = cv19.st %>%
+  left_join(age.st, by = "State") %>%
+  left_join(demo.st, by = "State") %>%
+  left_join(lkd.st, by = "State") %>%
+  left_join(nurse.st, by = "State") %>%
+  left_join(hospital.st, by = "State") %>%
+  left_join(transpo.st, by = "State") %>%
+  left_join(insurance.st, by = "State") %>%
+  left_join(poverty.st, by = "State") %>%
+  left_join(unemployed.st, by = "State")
+```
+
+
+
