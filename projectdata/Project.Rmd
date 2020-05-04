@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(dplyr)
 library(readxl)
+library(tidyr)
 ```
 
 ```{r}
@@ -187,5 +188,10 @@ data = cv19.st %>%
   left_join(unemployed.st, by = "State")
 ```
 
+```{r Random Forest Model}
+library(randomForest)
+
+
+```
 
 
