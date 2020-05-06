@@ -186,12 +186,36 @@ data = cv19.st %>%
   left_join(insurance.st, by = "State") %>%
   left_join(poverty.st, by = "State") %>%
   left_join(unemployed.st, by = "State")
+
 ```
 
-```{r Random Forest Model}
+```{r Bagging Model}
 library(randomForest)
 
+set.seed(123)
+index <- sample(1:nrow(data), nrow(data)/(10/7))
 
+covid.train <- data[index, ]
+covid.test <- data[-index, ]
+
+bag.data <- randomForest(Cases ~.-State-Deaths-PercentDeath, data=covid.train, mtry=15, importance=TRUE)
+bag.data
+
+importance(bag.data)
+
+##calculate the MSE for bagging model
+yhat.bag <- predict(bag.data, newdata=covid.test)
+data.test <- data[-index, "Cases"]
+plot(yhat.bag, data.test)
+MSE.bag <- mean((yhat.bag-data.test)^2)
+print(MSE.bag)
+print(sqrt(MSE.bag))
 ```
 
+Using the bagging method to build the model yields a Mean of squared residuals of 217089818 with the formula Cases ~ . - State - Deaths - PercentDeath. The % of variance explained by the model is only 43.5%.  The two most important variables in the model are LkdDuration and TotalPop. Using the test data we calculate a Test MSE = `r MSE.bag` with a square root of `r sqrt(MSE.bag)`. 
+
+
+```{r Random Forest}
+
+```
 
