@@ -2,6 +2,7 @@
 title: "Project"
 author: "Group"
 date: "4/9/2020"
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -204,7 +205,7 @@ importance(bag.data)
 
 ##calculate the MSE for bagging model
 yhat.bag <- predict(bag.data, newdata=covid.test)
-data.test <- data[-index, "Cases"]
+data.test <- covid.test$Cases
 plot(yhat.bag, data.test)
 MSE.bag <- mean((yhat.bag-data.test)^2)
 print(MSE.bag)
