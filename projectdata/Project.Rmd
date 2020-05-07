@@ -2,7 +2,6 @@
 title: "Project"
 author: "Group"
 date: "4/9/2020"
-output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -212,10 +211,50 @@ print(MSE.bag)
 print(sqrt(MSE.bag))
 ```
 
-Using the bagging method to build the model yields a Mean of squared residuals of 217089818 with the formula Cases ~ . - State - Deaths - PercentDeath. The % of variance explained by the model is only 43.5%.  The two most important variables in the model are LkdDuration and TotalPop. Using the test data we calculate a Test MSE = `r MSE.bag` with a square root of `r sqrt(MSE.bag)`. 
+
+Using the bagging method to build the model yields a Mean of squared residuals of 217089818 with the formula Cases ~ . - State - Deaths - PercentDeath. The percent of variance explained by the model is only 43.5%.  The two most important variables in the model are LkdDuration and TotalPop. Using the test data we calculate a Test MSE = `r MSE.bag` with a square root of `r sqrt(MSE.bag)`. 
 
 
 ```{r Random Forest}
+#Build the random forest model using mtry = p/3 = 5
+rf.data <- randomForest(Cases ~. -State-Deaths-PercentDeath, data=covid.train,
+                        mtry=5, importance=TRUE)
+rf.data
+importance(rf.data)
 
+#calculate the MSE for the random Forest model.
+yhat.rf <- predict(rf.data, newdata=covid.test)
+MSE.rf <- mean((yhat.rf - data.test)^2)
+print(MSE.rf)
+print(sqrt(MSE.rf))
 ```
 
+
+Using the Random Forest method to build the model yields a Mean of squared residuals of 236298994 with the formula Cases ~ . - State - Deaths - PercentDeath. The percent of variance explained by the model is only 38.5% which is lower than the bagging model (43.5).  The two most important variables in the model are LkdDuration and NumBeds, with RegNurse coming in as a close third. Interestingly, LkdDuration was also the most important variable in the bagging model. Using the test data we calculate a Test MSE = `r MSE.rf` with a square root of `r sqrt(MSE.rf)` both slighlty lower than the MSE and root MSE for the bagging model.
+
+
+```{r Boosting Model}
+#Build the boosting model for Cases
+library(gbm)
+set.seed(123)
+#n.minobsinnode is the min number of obs in trees' terminal nodes.
+#bag.fraction is the fraction of the training set obs randomly selected to propose
+#the next tree in the expansion. default is 0.5, increase if sample is small.
+#since the data set is small, lower n.minobsinnode and increase bag.fraction
+boost.data <- gbm(Cases ~. -State-Deaths-PercentDeath, data=covid.train, 
+                  distribution="gaussian", n.trees=5000, interaction.depth=4,
+                  n.minobsinnode = 5, bag.fraction = 0.75) 
+summary(boost.data)
+
+#Calculate the MSE for the boosting model.
+yhat.boost <- predict(boost.data, newdata=covid.test, n.trees=5000)
+MSE.boost <- mean((yhat.boost-data.test)^2)
+
+print(MSE.boost)
+print(sqrt(MSE.boost))
+```
+
+A gradient boosted model with gaussian loss function was build using the formula Cases ~. -State-Deaths-PercentDeath. Five thousand iterations were performed with 15 predictors, all predictors had non-zero influence. The two most important variables in this model are RegNurse and TotalPop. LkdDuration was ranked 4th by the model. Using the test data we calculate a Test MSE = `r MSE.boost` with a square root of `r sqrt(MSE.boost)`. Both are lower than the MSE and root MSE for the random forest model, so of the three models Boosting performed the best.
+
+Of the three models regressing number of cases of Covid-19 the Boosting model performed the best. However, the boosting model indicated the number of Registered Nurses as the most important predictor variable. This is difficult to explain as it is possible states with more registered nurses might provide more tests for Covid-19 and thus detect more cases (confounding?). 
+All three models included lockdown duration as an important predictor variable. It was first for the bagging and random forest models, but only fourth for the Boosting model.
